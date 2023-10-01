@@ -1,10 +1,10 @@
 package models;
 
-public class SearchBookDto {
+public class SearchBookRequestDto {
     private String bookName;
     private String author;
 
-    public SearchBookDto(String bookName, String author) {
+    public SearchBookRequestDto(String bookName, String author) {
         this.bookName = bookName;
         this.author = author;
     }

@@ -1,6 +1,7 @@
-package library;
+package models;
 
 import enums.TICKET_STATUS_ENUM;
+import library.Book;
 import users.Customer;
 
 import java.util.List;

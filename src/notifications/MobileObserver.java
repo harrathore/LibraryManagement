@@ -1,5 +1,5 @@
 package notifications;
 
 public interface MobileObserver {
-    public String notifyMeViaMobile();
+    public void notifyMeViaMobile();
 }

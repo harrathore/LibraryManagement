@@ -2,23 +2,27 @@ package library;
 
 import enums.BOOK_AVAILABILITY_STATUS_ENUM;
 import enums.TICKET_STATUS_ENUM;
-import models.SearchBookDto;
+import exceptions.GenericCustomException;
+import models.SearchBookRequestDto;
+import models.Ticket;
 import notifications.NotificationServiceInterface;
 import notifications.NotificationStrategyManager;
 import users.Customer;
 
 import java.util.*;
 
-public class Library implements AdminInterface, CustomerInterface {
+public class Library implements LibraryInterfaceForAdmin, LibraryInterfaceForCustomer {
     private static Library library = null;
-    private Set<Book> allbooks;
+    private Set<Book> allBooks;
+    private Set<Customer> allCustomers;
     private Set<Ticket> allOpenedTickets;
     private Set<Ticket> allClosedTickets;
     private NotificationStrategyManager notificationStrategyManager;
     private Library(){
-        allbooks = new HashSet<>();
+        allBooks = new HashSet<>();
         allOpenedTickets = new HashSet<>();
         allClosedTickets = new HashSet<>();
+        allCustomers = new HashSet<>();
         notificationStrategyManager = NotificationStrategyManager.getStrategyManager();
     }
 
@@ -35,52 +39,71 @@ public class Library implements AdminInterface, CustomerInterface {
 
     @Override
     public String addBookInLibrary(Book book) {
-        allbooks.add(book);
+        allBooks.add(book);
         return "Book added to library";
     }
 
     @Override
     public String removeBookFromLibrary(Book book) {
-        allbooks.remove(book);
+        allBooks.remove(book);
         return "Book removed from library";
     }
 
+
     @Override
-    public String notifyAllDue() {
-        this.notifyAllDueSubmision();
-        return "Notified";
+    public Boolean registerCustomerToLibrary(Customer customer) {
+        allCustomers.add(customer);
+        return true;
     }
 
     @Override
-    public List<Book> searchBooksFromLibrary(SearchBookDto searchBookDto) {
+    public Customer removeCustomerFromLibrary(Customer customer) {
+        allCustomers.remove(customer);
+        return customer;
+    }
+
+    @Override
+    public List<Book> searchBooksFromLibrary(SearchBookRequestDto searchBookRequestDto) {
         System.out.println("Searching books");
         List<Book> allSearchedBooks = new ArrayList<>();
-        allbooks.stream().forEach(book->{
-            if (book.getBookName().equalsIgnoreCase(searchBookDto.getBookName()) &&
+        allBooks.stream().forEach(book->{
+            if (book.getBookName().equalsIgnoreCase(searchBookRequestDto.getBookName()) &&
                     book.getBookAvailabilityStatus().equals(BOOK_AVAILABILITY_STATUS_ENUM.AVAILABLE))
                 allSearchedBooks.add(book);
             else if (book.getBookAvailabilityStatus().equals(BOOK_AVAILABILITY_STATUS_ENUM.AVAILABLE) &&
-                    book.getAuthor().equalsIgnoreCase(searchBookDto.getAuthor()))
+                    book.getAuthor().equalsIgnoreCase(searchBookRequestDto.getAuthor()))
                 allSearchedBooks.add(book);
         });
         return allSearchedBooks;
     }
 
     @Override
-
-    public synchronized Ticket issueBookToMe(Customer customer, List<Book> bookList) {
-        //Customer need to be authenticated here then only it will be allowed
-        System.out.println("Issueing books");
-        if(!Objects.nonNull(bookList)){
-           return null;
+    public Ticket issueBookToMe(Customer customer, List<Book> bookList) throws RuntimeException{
+        Boolean isThisValidCustomer = this.validateThisCustomer(customer);
+        if(!isThisValidCustomer){
+            throw new RuntimeException("You are not valid customer, please sign up first");
+        }
+        if(bookList==null || bookList.size()==0){
+            throw new RuntimeException("Please select valid books");
         }
         bookList.stream().forEach(book -> {
-            book.setBookAvailabilityStatus(BOOK_AVAILABILITY_STATUS_ENUM.ISSUED);
+            synchronized (new Object()){
+                if(book.getBookAvailabilityStatus().equals(BOOK_AVAILABILITY_STATUS_ENUM.AVAILABLE)){
+                    book.setBookAvailabilityStatus(BOOK_AVAILABILITY_STATUS_ENUM.ISSUED);
+                    System.out.println("this book issued successfully");
+                }else{
+                    throw new RuntimeException("This book is already issued");
+                }
+            }
         });
 
         Ticket ticket = new Ticket(customer, bookList);
         allOpenedTickets.add(ticket);
         return ticket;
+    }
+
+    private Boolean validateThisCustomer(Customer customer) {
+        return allCustomers.contains(customer);
     }
 
     @Override
@@ -102,6 +125,8 @@ public class Library implements AdminInterface, CustomerInterface {
         return ticket;
     }
 
+
+
     /**
      * A cron job for all due submission
      */
@@ -114,5 +139,13 @@ public class Library implements AdminInterface, CustomerInterface {
                 notificationServiceInterface.notifyCustomer(openTicket.getCustomer());
             }
         });
+    }
+
+    public Set<Ticket> getAllOpenedTickets() {
+        return allOpenedTickets;
+    }
+
+    public Set<Ticket> getAllClosedTickets() {
+        return allClosedTickets;
     }
 }

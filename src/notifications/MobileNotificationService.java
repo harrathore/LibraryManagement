@@ -2,9 +2,7 @@ package notifications;
 
 import users.Customer;
 
-import java.util.List;
-
-public class MobileNotification implements NotificationServiceInterface{
+public class MobileNotificationService implements NotificationServiceInterface{
 
     @Override
     public String notifyCustomer(Customer customer) {
